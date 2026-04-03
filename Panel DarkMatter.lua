@@ -402,8 +402,8 @@ local FOVStroke = Instance.new("UIStroke", FOVFrame); FOVStroke.Color = THEME.Ac
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "DarkMatter_V4_Main"
-MainFrame.Size = UDim2.new(0, 600, 0, 350)
-MainFrame.Position = UDim2.new(0.5, -300, 0.5, -175)
+MainFrame.Size = UDim2.new(0, 400, 0, 350)
+MainFrame.Position = UDim2.new(0.5, -200, 0.5, -175)
 MainFrame.BackgroundColor3 = THEME.Background
 MainFrame.ClipsDescendants = true
 MainFrame.Visible = false 
@@ -430,11 +430,13 @@ Title.Parent = TitleBar
 
 local MinBtn = Instance.new("TextButton")
 MinBtn.Size = UDim2.new(0, 30, 0, 30)
-MinBtn.Position = UDim2.new(1, -75, 0, 5)
-MinBtn.BackgroundColor3 = THEME.ElementBG;
-MinBtn.TextColor3 = THEME.Accent; MinBtn.Font = Enum.Font.GothamBold; MinBtn.TextSize = 18; MinBtn.Text = "▲"; MinBtn.Parent = TitleBar;
-Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 6)
+MinBtn.Position = UDim2.new(1, -115, 0, 5)
+MinBtn.BackgroundColor3 = THEME.ElementBG; MinBtn.TextColor3 = THEME.Accent; MinBtn.Font = Enum.Font.GothamBold; MinBtn.TextSize = 18; MinBtn.Text = "▲"; MinBtn.Parent = TitleBar; Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 6)
 
+local HideBtn = Instance.new("TextButton")
+HideBtn.Size = UDim2.new(0, 30, 0, 30)
+HideBtn.Position = UDim2.new(1, -75, 0, 5)
+HideBtn.BackgroundColor3 = THEME.ElementBG; HideBtn.TextColor3 = Color3.fromRGB(255, 255, 0); HideBtn.Font = Enum.Font.GothamBold; HideBtn.TextSize = 18; HideBtn.Text = "O"; HideBtn.Parent = TitleBar; Instance.new("UICorner", HideBtn).CornerRadius = UDim.new(0, 6)
 
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0, 30, 0, 30)
@@ -463,9 +465,8 @@ local function ToggleVisibility(visible)
     MainFrame.Visible = visible
     GhostBtn.Visible = not visible
     
-    -- Fix: Sincroniza la posición del botón fantasma con el panel antes de ocultarlo
     if not visible then
-        GhostBtn.Position = MainFrame.Position
+        GhostBtn.Position = MainFrame.Position + UDim2.new(0, MainFrame.Size.X.Offset - 75, 0, 5)
     end
     
     if FreecamSystem.UI then
@@ -482,11 +483,11 @@ local function ToggleVisibility(visible)
     end
 end
 
-
+HideBtn.MouseButton1Click:Connect(function() ToggleVisibility(false) end)
 GhostBtn.MouseButton1Click:Connect(function() ToggleVisibility(true) end)
 
 local Container = Instance.new("ScrollingFrame")
-Container.Size = UDim2.new(0, 390, 1, -80)
+Container.Size = UDim2.new(1, -20, 1, -80)
 Container.Position = UDim2.new(0, 10, 0, 75)
 Container.BackgroundTransparency = 1
 Container.ScrollBarThickness = 3
@@ -499,7 +500,7 @@ UIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 end)
 
 local TabBar = Instance.new("Frame")
-TabBar.Size = UDim2.new(0, 390, 0, 30)
+TabBar.Size = UDim2.new(1, 0, 0, 30)
 TabBar.Position = UDim2.new(0, 0, 0, 40)
 TabBar.BackgroundColor3 = THEME.TopBar
 TabBar.Parent = MainFrame
@@ -550,90 +551,6 @@ CreateTab("VISUALS", 2)
 CreateTab("MOVEMENT", 3)
 CreateTab("MISC", 4)
 CreateTab("INFORMATION", 5)
-
-local AvatarContainer = Instance.new("Frame")
-AvatarContainer.Name = "AvatarContainer"
-AvatarContainer.Size = UDim2.new(0, 190, 1, -50)
-AvatarContainer.Position = UDim2.new(0, 400, 0, 45)
-AvatarContainer.BackgroundColor3 = THEME.ElementBG
-AvatarContainer.Parent = MainFrame
-Instance.new("UICorner", AvatarContainer).CornerRadius = UDim.new(0, 10)
-Instance.new("UIStroke", AvatarContainer).Color = THEME.Accent; AvatarContainer.UIStroke.Thickness = 2
-
-local ViewportFrame = Instance.new("ViewportFrame")
-ViewportFrame.Size = UDim2.new(1, 0, 1, -30)
-ViewportFrame.Position = UDim2.new(0, 0, 0, 0)
-ViewportFrame.BackgroundTransparency = 1
-ViewportFrame.Parent = AvatarContainer
-
-local AvatarCamera = Instance.new("Camera")
-ViewportFrame.CurrentCamera = AvatarCamera
-AvatarCamera.Parent = ViewportFrame
-
-local AvatarNameLabel = Instance.new("TextLabel")
-AvatarNameLabel.Size = UDim2.new(1, 0, 0, 30)
-AvatarNameLabel.Position = UDim2.new(0, 0, 1, -30)
-AvatarNameLabel.BackgroundTransparency = 1
-AvatarNameLabel.TextColor3 = THEME.Text
-AvatarNameLabel.Font = Enum.Font.GothamBold
-AvatarNameLabel.TextSize = 14
-AvatarNameLabel.Text = LocalPlayer.Name or LocalPlayer.DisplayName
-AvatarNameLabel.Parent = AvatarContainer
-
-local AvatarClone = nil
-local CharacterParts = {}
-local CloneParts = {}
-
-local function SetupAvatarClone(char)
-    if not char then return end
-    char:WaitForChild("HumanoidRootPart", 5)
-    if AvatarClone then AvatarClone:Destroy() end
-    CharacterParts = {}
-    CloneParts = {}
-    
-    char.Archivable = true
-    AvatarClone = char:Clone()
-    char.Archivable = false
-    
-    for _, v in pairs(AvatarClone:GetDescendants()) do
-        if v:IsA("Script") or v:IsA("LocalScript") or v:IsA("ScreenGui") or v:IsA("BillboardGui") or v:IsA("SurfaceGui") or v:IsA("Sound") then
-            v:Destroy()
-        end
-    end
-    
-    AvatarClone.Parent = ViewportFrame
-    
-    for _, part in pairs(char:GetDescendants()) do
-        if part:IsA("BasePart") then
-            local clonePart = AvatarClone:FindFirstChild(part.Name, true)
-            if clonePart then
-                table.insert(CharacterParts, part)
-                table.insert(CloneParts, clonePart)
-            end
-        end
-    end
-end
-
-if LocalPlayer.Character then SetupAvatarClone(LocalPlayer.Character) end
-LocalPlayer.CharacterAdded:Connect(SetupAvatarClone)
-
-RunService.RenderStepped:Connect(function()
-    if not ScriptRunning then return end
-    if AvatarClone and AvatarContainer.Visible and MainFrame.Visible then
-        for i = 1, #CharacterParts do
-            if CharacterParts[i] and CloneParts[i] then
-                CloneParts[i].CFrame = CharacterParts[i].CFrame
-            end
-        end
-        
-        local hrp = AvatarClone:FindFirstChild("HumanoidRootPart") or AvatarClone:FindFirstChild("Torso") or AvatarClone:FindFirstChild("UpperTorso")
-        if hrp then
-            local targetPos = hrp.Position
-            local camPos = targetPos + (hrp.CFrame.LookVector * 5.5) + Vector3.new(0, 0.5, 0)
-            AvatarCamera.CFrame = CFrame.new(camPos, targetPos)
-        end
-    end
-end)
 
 local ConfirmFrame = Instance.new("Frame")
 ConfirmFrame.Size = UDim2.new(0, 280, 0, 140)
@@ -986,36 +903,19 @@ YesBtn.MouseButton1Click:Connect(function() ShutdownPanel() end)
 
 MinBtn.MouseButton1Click:Connect(function()
     State.IsMinimized = not State.IsMinimized
-    
-    -- Ajustamos a 230 de ancho para aumentar un poco la distancia entre el texto y los botones
-    local targetSize = State.IsMinimized and UDim2.new(0, 230, 0, 40) or UDim2.new(0, 600, 0, 350)
-    
-    TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-        Size = targetSize
-    }):Play()
-
     if State.IsMinimized then
-        MinBtn.Text = "▼"
-        Container.Visible = false
-        TabBar.Visible = false
-        if MainFrame:FindFirstChild("AvatarContainer") then MainFrame.AvatarContainer.Visible = false end
+        TweenService:Create(MainFrame, TweenInfo.new(0.4), {Size = UDim2.new(0, 280, 0, 40)}):Play()
+        MinBtn.Text = "▼"; Container.Visible = false
     else
-        MinBtn.Text = "▲"
-        task.delay(0.2, function()
-            if not State.IsMinimized then
-                Container.Visible = true
-                TabBar.Visible = true
-                if MainFrame:FindFirstChild("AvatarContainer") then MainFrame.AvatarContainer.Visible = true end
-            end
-        end)
+        TweenService:Create(MainFrame, TweenInfo.new(0.4), {Size = UDim2.new(0, 400, 0, 350)}):Play()
+        MinBtn.Text = "▲"; task.delay(0.1, function() Container.Visible = true end)
     end
 end)
-
 
 local function MakeDraggable(guiObject, target)
     local dragging, dragStart, startPos
     guiObject.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true; dragStart = input.Position; startPos = target.Position end end)
-    UserInputService.InputChanged:Connect(function(input) if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then local delta = input.Position - dragStart; target.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y); GhostBtn.Position = target.Position + UDim2.new(0, 525, 0, 5) end end)
+    UserInputService.InputChanged:Connect(function(input) if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then local delta = input.Position - dragStart; target.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y); GhostBtn.Position = target.Position + UDim2.new(0, target.Size.X.Offset - 75, 0, 5) end end)
     UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
 end
 MakeDraggable(TitleBar, MainFrame)
