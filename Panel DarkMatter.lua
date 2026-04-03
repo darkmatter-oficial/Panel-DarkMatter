@@ -430,13 +430,11 @@ Title.Parent = TitleBar
 
 local MinBtn = Instance.new("TextButton")
 MinBtn.Size = UDim2.new(0, 30, 0, 30)
-MinBtn.Position = UDim2.new(1, -115, 0, 5)
-MinBtn.BackgroundColor3 = THEME.ElementBG; MinBtn.TextColor3 = THEME.Accent; MinBtn.Font = Enum.Font.GothamBold; MinBtn.TextSize = 18; MinBtn.Text = "▲"; MinBtn.Parent = TitleBar; Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 6)
+MinBtn.Position = UDim2.new(1, -75, 0, 5)
+MinBtn.BackgroundColor3 = THEME.ElementBG;
+MinBtn.TextColor3 = THEME.Accent; MinBtn.Font = Enum.Font.GothamBold; MinBtn.TextSize = 18; MinBtn.Text = "▲"; MinBtn.Parent = TitleBar;
+Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 6)
 
-local HideBtn = Instance.new("TextButton")
-HideBtn.Size = UDim2.new(0, 30, 0, 30)
-HideBtn.Position = UDim2.new(1, -75, 0, 5)
-HideBtn.BackgroundColor3 = THEME.ElementBG; HideBtn.TextColor3 = Color3.fromRGB(255, 255, 0); HideBtn.Font = Enum.Font.GothamBold; HideBtn.TextSize = 18; HideBtn.Text = "O"; HideBtn.Parent = TitleBar; Instance.new("UICorner", HideBtn).CornerRadius = UDim.new(0, 6)
 
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0, 30, 0, 30)
@@ -465,6 +463,11 @@ local function ToggleVisibility(visible)
     MainFrame.Visible = visible
     GhostBtn.Visible = not visible
     
+    -- Fix: Sincroniza la posición del botón fantasma con el panel antes de ocultarlo
+    if not visible then
+        GhostBtn.Position = MainFrame.Position
+    end
+    
     if FreecamSystem.UI then
         if not visible then
             FreecamSystem.internalDisable = true
@@ -479,7 +482,7 @@ local function ToggleVisibility(visible)
     end
 end
 
-HideBtn.MouseButton1Click:Connect(function() ToggleVisibility(false) end)
+
 GhostBtn.MouseButton1Click:Connect(function() ToggleVisibility(true) end)
 
 local Container = Instance.new("ScrollingFrame")
@@ -983,18 +986,31 @@ YesBtn.MouseButton1Click:Connect(function() ShutdownPanel() end)
 
 MinBtn.MouseButton1Click:Connect(function()
     State.IsMinimized = not State.IsMinimized
+    
+    -- Ajustamos a 230 de ancho para aumentar un poco la distancia entre el texto y los botones
+    local targetSize = State.IsMinimized and UDim2.new(0, 230, 0, 40) or UDim2.new(0, 600, 0, 350)
+    
+    TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+        Size = targetSize
+    }):Play()
+
     if State.IsMinimized then
-        TweenService:Create(MainFrame, TweenInfo.new(0.4), {Size = UDim2.new(0, 600, 0, 40)}):Play()
-        MinBtn.Text = "▼"; Container.Visible = false
+        MinBtn.Text = "▼"
+        Container.Visible = false
+        TabBar.Visible = false
         if MainFrame:FindFirstChild("AvatarContainer") then MainFrame.AvatarContainer.Visible = false end
     else
-        TweenService:Create(MainFrame, TweenInfo.new(0.4), {Size = UDim2.new(0, 600, 0, 350)}):Play()
-        MinBtn.Text = "▲"; task.delay(0.1, function() 
-            Container.Visible = true 
-            if MainFrame:FindFirstChild("AvatarContainer") then MainFrame.AvatarContainer.Visible = true end
+        MinBtn.Text = "▲"
+        task.delay(0.2, function()
+            if not State.IsMinimized then
+                Container.Visible = true
+                TabBar.Visible = true
+                if MainFrame:FindFirstChild("AvatarContainer") then MainFrame.AvatarContainer.Visible = true end
+            end
         end)
     end
 end)
+
 
 local function MakeDraggable(guiObject, target)
     local dragging, dragStart, startPos
