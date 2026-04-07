@@ -36,6 +36,7 @@ local State = {
     NoRecoil = false, 
     AimbotMode = IsRivals and "BLATANT" or "LEGIT", 
     TargetPart = "HEAD", 
+    HitChance = 100,
     RapidFire = false, 
     TeamCheck = false,
     WallCheck = true,
@@ -70,7 +71,10 @@ local State = {
     EditingHUD = false,
     FreecamEnabled = false, 
     ESPRenderDistance = 500, 
-    AimbotRange = 400 
+    AimbotRange = 400,
+    CurrentHitStatus = true,
+    LastHitEval = 0,
+    MissOffset = Vector2.new(0, 0)
 }
 
 local THEME = {
@@ -1095,6 +1099,14 @@ end
 
 BPBtn.MouseButton1Click:Connect(function() currentBPIdx = currentBPIdx + 1; if currentBPIdx > #BPModes then currentBPIdx = 1 end; SetTargetPart(BPModes[currentBPIdx]) end)
 
+local HitChanceFrame = Instance.new("Frame"); HitChanceFrame.Size = UDim2.new(1, -10, 0, 40); HitChanceFrame.BackgroundColor3 = THEME.ElementBG; HitChanceFrame.Parent = Container; HitChanceFrame.LayoutOrder = getNextOrder()
+Instance.new("UICorner", HitChanceFrame).CornerRadius = UDim.new(0, 6)
+local HCLbl = Instance.new("TextLabel"); HCLbl.Text = " HIT CHANCE:"; HCLbl.Size = UDim2.new(0.4, 0, 1, 0); HCLbl.BackgroundTransparency = 1; HCLbl.TextColor3 = THEME.Text; HCLbl.Font = Enum.Font.GothamSemibold; HCLbl.TextXAlignment = Enum.TextXAlignment.Left; HCLbl.Parent = HitChanceFrame
+local HCBtn = Instance.new("TextButton"); HCBtn.Size = UDim2.new(0.55, 0, 0.7, 0); HCBtn.Position = UDim2.new(0.42, 0, 0.15, 0); HCBtn.BackgroundColor3 = THEME.TopBar; HCBtn.Text = tostring(State.HitChance) .. "%"; HCBtn.TextColor3 = THEME.Accent; HCBtn.Font = Enum.Font.GothamBold; HCBtn.TextSize = 12; HCBtn.Parent = HitChanceFrame; Instance.new("UICorner", HCBtn).CornerRadius = UDim.new(0, 4)
+local HCModes = {100, 70, 50, 20, 1}
+local currentHCIdx = 1
+HCBtn.MouseButton1Click:Connect(function() currentHCIdx = currentHCIdx + 1; if currentHCIdx > #HCModes then currentHCIdx = 1 end; State.HitChance = HCModes[currentHCIdx]; HCBtn.Text = tostring(State.HitChance) .. "%" end)
+
 local RapidFireToggle = CreateToggle("🔥 RAPID FIRE", "RapidFire", nil)
 local NoRecoilToggle = CreateToggle("🚫 NO RECOIL", "NoRecoil", nil)
 local SilentAimToggle = CreateToggle("🎯 SILENT AIM", "SilentAim", nil)
@@ -1451,6 +1463,7 @@ AssignCat("FIELD OF VIEW", "VISUALS")
 
 AssignCat("AIMBOT (MOBILE", "COMBAT")
 AssignCat("TARGET:", "COMBAT")
+AssignCat("HIT CHANCE", "COMBAT")
 AssignCat("RAPID FIRE", "COMBAT")
 AssignCat("NO RECOIL", "COMBAT")
 AssignCat("SILENT AIM", "COMBAT")
@@ -1509,6 +1522,7 @@ UniversalBtn.MouseButton1Click:Connect(function()
     RapidFireToggle.Visible = false
     NoRecoilToggle.Visible = false
     SilentAimToggle.Visible = false
+    if HitChanceFrame then HitChanceFrame.Visible = false end
     
     if _G.UpdateCategoryVisibility then _G.UpdateCategoryVisibility() end
 end)
@@ -1518,6 +1532,9 @@ RivalsBtn.MouseButton1Click:Connect(function()
     ManualModeSelected = true
     SelectorFrame.Visible = false
     MainFrame.Visible = true
+    
+    State.AimbotMode = "BLATANT"
+    ModeBtn.Text = State.AimbotMode
     
     if AimModeFrame then AimModeFrame.Visible = false end
     
@@ -1530,7 +1547,7 @@ _G.UpdateCategoryVisibility = function()
         local isMatch = (category == currentActiveTab)
         
         if isMatch then
-            local isRivalsFeature = (element == RapidFireToggle or element == NoRecoilToggle or element == SilentAimToggle)
+            local isRivalsFeature = (element == RapidFireToggle or element == NoRecoilToggle or element == SilentAimToggle or element == HitChanceFrame)
             local isUniversalFeature = (element == AimModeFrame)
             
             if not IsRivals and isRivalsFeature then
@@ -1599,6 +1616,20 @@ end
 
 RunService.RenderStepped:Connect(function(dt)
     if not ScriptRunning then return end 
+    
+    if not State.LastHitEval then State.LastHitEval = tick() end
+    if State.CurrentHitStatus == nil then State.CurrentHitStatus = true end
+    
+    if tick() - State.LastHitEval > 0.3 then
+        State.LastHitEval = tick()
+        local wasHitting = State.CurrentHitStatus
+        State.CurrentHitStatus = (math.random(1, 100) <= (State.HitChance or 100))
+        if wasHitting and not State.CurrentHitStatus then
+            State.MissOffset = Vector2.new(math.random(-300, 300), math.random(-300, 300))
+            if math.abs(State.MissOffset.X) < 100 then State.MissOffset = Vector2.new(State.MissOffset.X > 0 and 150 or -150, State.MissOffset.Y) end
+            if math.abs(State.MissOffset.Y) < 100 then State.MissOffset = Vector2.new(State.MissOffset.X, State.MissOffset.Y > 0 and 150 or -150) end
+        end
+    end
     
     local target = GetClosestPlayer()
     local anyVisiblePlayer = false
@@ -1927,17 +1958,34 @@ end)
 
 local _idx
 _idx = hookmetamethod(game, "__index", newcclosure(function(self, idx, ...)
-    if State.AimbotMobile and CurrentTargetPart and not checkcaller() and idx == "ViewportSize" and self == Camera then
-        local pos, on = Camera:WorldToViewportPoint(CurrentTargetPart.Position)
-        if on then
-            return Vector2.new(pos.X * 2, pos.Y * 2)
-        end
+    local isHitting = true
+    if IsRivals and (State.HitChance or 100) < 100 then
+        isHitting = State.CurrentHitStatus
     end
-    
-    if State.SilentAim and SilentTarget and not checkcaller() and idx == "ViewportSize" and self == Camera then
-        local pos, on = Camera:WorldToViewportPoint(SilentTarget.Position)
-        if on then
-            return Vector2.new(pos.X * 2, pos.Y * 2)
+
+    if not checkcaller() and idx == "ViewportSize" and self == Camera then
+        if State.AimbotMobile and CurrentTargetPart then
+            local pos, on = Camera:WorldToViewportPoint(CurrentTargetPart.Position)
+            if on then
+                if isHitting then
+                    return Vector2.new(pos.X * 2, pos.Y * 2)
+                else
+                    local offset = State.MissOffset or Vector2.new(200, 200)
+                    return Vector2.new((pos.X + offset.X) * 2, (pos.Y + offset.Y) * 2)
+                end
+            end
+        end
+        
+        if State.SilentAim and SilentTarget then
+            local pos, on = Camera:WorldToViewportPoint(SilentTarget.Position)
+            if on then
+                if isHitting then
+                    return Vector2.new(pos.X * 2, pos.Y * 2)
+                else
+                    local offset = State.MissOffset or Vector2.new(200, 200)
+                    return Vector2.new((pos.X + offset.X) * 2, (pos.Y + offset.Y) * 2)
+                end
+            end
         end
     end
     
