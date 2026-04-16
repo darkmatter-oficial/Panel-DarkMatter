@@ -428,7 +428,7 @@ Title.BackgroundTransparency = 1
 Title.TextColor3 = THEME.Text
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 16
-Title.Text = "DARKMATTER v4.0"
+Title.Text = "DARKMATTER v4.3"
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = TitleBar
 
