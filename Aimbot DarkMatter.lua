@@ -13,31 +13,41 @@ local Settings = {
 
 -- --- OBJETOS DEL JUEGO ---
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 local Player = game.Players.LocalPlayer
-local Mouse = Player:GetMouse()
 
--- --- CÍRCULO DE FOV ---
-local FOVCircle = Drawing.new("Circle")
-FOVCircle.Thickness = 1.5
-FOVCircle.Filled = false
-FOVCircle.Color = Color3.fromRGB(150, 80, 255) -- Mismo púrpura que la UI
-FOVCircle.Transparency = 0.7
-FOVCircle.Visible = false
+-- --- CÍRCULO DE FOV (Sistema Robusto) ---
+local FOVCircle = nil
+local drawingSuccess, err = pcall(function()
+    FOVCircle = Drawing.new("Circle")
+    FOVCircle.Thickness = 2
+    FOVCircle.Filled = false
+    FOVCircle.Color = Color3.fromRGB(150, 80, 255)
+    FOVCircle.Transparency = 1
+    FOVCircle.Visible = false
+    return FOVCircle
+end)
+
+if not drawingSuccess then
+    warn("Tu ejecutor no soporta la librería Drawing. El círculo de FOV no será visible.")
+end
 
 -- --- LÓGICA DEL AIMBOT ---
 local function GetClosestPlayer()
     local closestPlayer = nil
     local shortestDistance = Settings.Fov
-    local ScreenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    local ViewportSize = Camera.ViewportSize
+    local ScreenCenter = Vector2.new(ViewportSize.X / 2, ViewportSize.Y / 2)
 
     for _, v in pairs(game.Players:GetPlayers()) do
-        if v ~= Player and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
+        if v ~= Player and v.Character and v.Character:FindFirstChild(Settings.HitPart) and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
             
             -- Team Check
             if Settings.TeamCheck and v.Team == Player.Team then continue end
 
             local pos, onScreen = Camera:WorldToViewportPoint(v.Character[Settings.HitPart].Position)
+            
             if onScreen then
                 local distance = (Vector2.new(pos.X, pos.Y) - ScreenCenter).Magnitude
                 if distance < shortestDistance then
@@ -50,16 +60,18 @@ local function GetClosestPlayer()
     return closestPlayer
 end
 
--- Bucle Principal
+-- Bucle Principal (Optimizado)
 RunService.RenderStepped:Connect(function()
-    -- Actualizar referencias constantes
     Camera = workspace.CurrentCamera
-    local ScreenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    local ViewportSize = Camera.ViewportSize
+    local ScreenCenter = Vector2.new(ViewportSize.X / 2, ViewportSize.Y / 2)
 
-    -- Actualizar Círculo FOV
-    FOVCircle.Visible = Settings.FovVisible
-    FOVCircle.Radius = Settings.Fov
-    FOVCircle.Position = ScreenCenter
+    -- Actualizar Círculo FOV si existe
+    if FOVCircle then
+        FOVCircle.Visible = Settings.FovVisible
+        FOVCircle.Radius = Settings.Fov
+        FOVCircle.Position = ScreenCenter
+    end
 
     if Settings.Enabled then
         local Target = GetClosestPlayer()
@@ -67,11 +79,17 @@ RunService.RenderStepped:Connect(function()
             local TargetPos, onScreen = Camera:WorldToViewportPoint(Target.Character[Settings.HitPart].Position)
             
             if onScreen then
-                -- Calcular movimiento con suavizado (Smoothing)
+                -- Calcular dirección del movimiento
                 local MoveX = (TargetPos.X - ScreenCenter.X) / Settings.Smoothing
                 local MoveY = (TargetPos.Y - ScreenCenter.Y) / Settings.Smoothing
                 
-                mousemoverel(MoveX, MoveY) -- Requiere un executor que soporte mousemoverel
+                -- Intento de movimiento (mousemoverel es el estándar, si falla usamos alternativas)
+                if mousemoverel then
+                    mousemoverel(MoveX, MoveY)
+                elseif sethiddenproperty then -- Alternativa para algunos ejecutores
+                    local currentCFrame = Camera.CFrame
+                    Camera.CFrame = CFrame.new(currentCFrame.Position, Target.Character[Settings.HitPart].Position)
+                end
             end
         end
     end
@@ -107,4 +125,5 @@ addToggle(Col2, "Show FOV Circle", function(state)
     Settings.FovVisible = state
 end)
 
-addLabel(Col2, "Note: Lower Smoothing = Faster Aim", false)
+addLabel(Col2, "Nota: Si el círculo no aparece, tu ejecutor no soporta 'Drawing'.", false)
+addLabel(Col2, "Nota 2: Smoothing 1 es el más rápido.", false)
