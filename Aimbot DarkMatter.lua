@@ -1,129 +1,57 @@
--- Archivo: Combat.lua
-local createTab, createColumn, addLabel, addButton, addToggle, addKeybind, addDropdown, addSlider = ...
+-- Logica de Aimbot para DarkMatter Panel
+local player = game.Players.LocalPlayer
+local mouse = player:GetMouse()
+local camera = game.Workspace.CurrentCamera
+local runService = game:GetService("RunService")
 
--- --- VARIABLES DE CONFIGURACIÓN ---
-local Settings = {
-    Enabled = false,
-    TeamCheck = true,
-    HitPart = "Head",
-    Fov = 150,
-    Smoothing = 5, -- 1 = Instantáneo, valores altos = más lento/disimulado
-    FovVisible = false
-}
+-- Variables de entorno (se sincronizan con el menu)
+_G.AimbotEnabled = false
+_G.AimbotPart = "Head"
+_G.AimbotSmoothness = 5
+_G.FovVisible = false
+_G.FovRadius = 150
 
--- --- OBJETOS DEL JUEGO ---
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local Camera = workspace.CurrentCamera
-local Player = game.Players.LocalPlayer
+-- Crear Circulo de FOV
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Thickness = 1
+FOVCircle.Color = Color3.fromRGB(150, 80, 255)
+FOVCircle.Filled = false
+FOVCircle.Transparency = 1
 
--- --- CÍRCULO DE FOV (Sistema Robusto) ---
-local FOVCircle = nil
-local drawingSuccess, err = pcall(function()
-    FOVCircle = Drawing.new("Circle")
-    FOVCircle.Thickness = 2
-    FOVCircle.Filled = false
-    FOVCircle.Color = Color3.fromRGB(150, 80, 255)
-    FOVCircle.Transparency = 1
-    FOVCircle.Visible = false
-    return FOVCircle
-end)
-
-if not drawingSuccess then
-    warn("Tu ejecutor no soporta la librería Drawing. El círculo de FOV no será visible.")
-end
-
--- --- LÓGICA DEL AIMBOT ---
-local function GetClosestPlayer()
-    local closestPlayer = nil
-    local shortestDistance = Settings.Fov
-    local ViewportSize = Camera.ViewportSize
-    local ScreenCenter = Vector2.new(ViewportSize.X / 2, ViewportSize.Y / 2)
+local function getClosestPlayer()
+    local target = nil
+    local shortestDistance = _G.FovRadius
 
     for _, v in pairs(game.Players:GetPlayers()) do
-        if v ~= Player and v.Character and v.Character:FindFirstChild(Settings.HitPart) and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
-            
-            -- Team Check
-            if Settings.TeamCheck and v.Team == Player.Team then continue end
-
-            local pos, onScreen = Camera:WorldToViewportPoint(v.Character[Settings.HitPart].Position)
-            
+        if v ~= player and v.Character and v.Character:FindFirstChild(_G.AimbotPart) and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
+            local pos, onScreen = camera:WorldToViewportPoint(v.Character[_G.AimbotPart].Position)
             if onScreen then
-                local distance = (Vector2.new(pos.X, pos.Y) - ScreenCenter).Magnitude
+                local distance = (Vector2.new(pos.X, pos.Y) - Vector2.new(mouse.X, mouse.Y)).Magnitude
                 if distance < shortestDistance then
-                    closestPlayer = v
+                    target = v
                     shortestDistance = distance
                 end
             end
         end
     end
-    return closestPlayer
+    return target
 end
 
--- Bucle Principal (Optimizado)
-RunService.RenderStepped:Connect(function()
-    Camera = workspace.CurrentCamera
-    local ViewportSize = Camera.ViewportSize
-    local ScreenCenter = Vector2.new(ViewportSize.X / 2, ViewportSize.Y / 2)
+runService.RenderStepped:Connect(function()
+    -- Actualizar FOV
+    FOVCircle.Visible = _G.FovVisible
+    FOVCircle.Radius = _G.FovRadius
+    FOVCircle.Position = Vector2.new(mouse.X, mouse.Y + 36)
 
-    -- Actualizar Círculo FOV si existe
-    if FOVCircle then
-        FOVCircle.Visible = Settings.FovVisible
-        FOVCircle.Radius = Settings.Fov
-        FOVCircle.Position = ScreenCenter
-    end
-
-    if Settings.Enabled then
-        local Target = GetClosestPlayer()
-        if Target and Target.Character and Target.Character:FindFirstChild(Settings.HitPart) then
-            local TargetPos, onScreen = Camera:WorldToViewportPoint(Target.Character[Settings.HitPart].Position)
+    -- Logica de Apuntado
+    if _G.AimbotEnabled then
+        local target = getClosestPlayer()
+        if target then
+            local targetPos = camera:WorldToViewportPoint(target.Character[_G.AimbotPart].Position)
+            local mousePos = Vector2.new(mouse.X, mouse.Y + 36)
+            local moveVector = (Vector2.new(targetPos.X, targetPos.Y) - mousePos) / _G.AimbotSmoothness
             
-            if onScreen then
-                -- Calcular dirección del movimiento
-                local MoveX = (TargetPos.X - ScreenCenter.X) / Settings.Smoothing
-                local MoveY = (TargetPos.Y - ScreenCenter.Y) / Settings.Smoothing
-                
-                -- Intento de movimiento (mousemoverel es el estándar, si falla usamos alternativas)
-                if mousemoverel then
-                    mousemoverel(MoveX, MoveY)
-                elseif sethiddenproperty then -- Alternativa para algunos ejecutores
-                    local currentCFrame = Camera.CFrame
-                    Camera.CFrame = CFrame.new(currentCFrame.Position, Target.Character[Settings.HitPart].Position)
-                end
-            end
+            mousemoverel(moveVector.X, moveVector.Y)
         end
     end
 end)
-
--- --- CONSTRUCCIÓN DE LA INTERFAZ ---
-local PageCombat = createTab("Combat & Aim", "🎯")
-local Col1 = createColumn(PageCombat, "Main Aimbot")
-
-addToggle(Col1, "Enable Aimbot", function(state)
-    Settings.Enabled = state
-end)
-
-addToggle(Col1, "Team Check", function(state)
-    Settings.TeamCheck = state
-end)
-
-addDropdown(Col1, "Target Part", {"Head", "UpperTorso", "HumanoidRootPart"}, function(selected)
-    Settings.HitPart = selected
-end)
-
-local Col2 = createColumn(PageCombat, "FOV & Speed")
-
-addSlider(Col2, "Aimbot FOV", 30, 800, 150, function(val)
-    Settings.Fov = val
-end)
-
-addSlider(Col2, "Smoothing (Speed)", 1, 20, 5, function(val)
-    Settings.Smoothing = val
-end)
-
-addToggle(Col2, "Show FOV Circle", function(state)
-    Settings.FovVisible = state
-end)
-
-addLabel(Col2, "Nota: Si el círculo no aparece, tu ejecutor no soporta 'Drawing'.", false)
-addLabel(Col2, "Nota 2: Smoothing 1 es el más rápido.", false)
