@@ -8,7 +8,7 @@ local Settings = {
     HitPart = "Head",
     Fov = 150,
     Smoothing = 5, -- 1 = Instantáneo, valores altos = más lento/disimulado
-    FovVisible = true
+    FovVisible = false
 }
 
 -- --- OBJETOS DEL JUEGO ---
@@ -23,11 +23,13 @@ FOVCircle.Thickness = 1.5
 FOVCircle.Filled = false
 FOVCircle.Color = Color3.fromRGB(150, 80, 255) -- Mismo púrpura que la UI
 FOVCircle.Transparency = 0.7
+FOVCircle.Visible = false
 
 -- --- LÓGICA DEL AIMBOT ---
 local function GetClosestPlayer()
     local closestPlayer = nil
     local shortestDistance = Settings.Fov
+    local ScreenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 
     for _, v in pairs(game.Players:GetPlayers()) do
         if v ~= Player and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
@@ -37,7 +39,7 @@ local function GetClosestPlayer()
 
             local pos, onScreen = Camera:WorldToViewportPoint(v.Character[Settings.HitPart].Position)
             if onScreen then
-                local distance = (Vector2.new(pos.X, pos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
+                local distance = (Vector2.new(pos.X, pos.Y) - ScreenCenter).Magnitude
                 if distance < shortestDistance then
                     closestPlayer = v
                     shortestDistance = distance
@@ -50,22 +52,27 @@ end
 
 -- Bucle Principal
 RunService.RenderStepped:Connect(function()
+    -- Actualizar referencias constantes
+    Camera = workspace.CurrentCamera
+    local ScreenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+
     -- Actualizar Círculo FOV
     FOVCircle.Visible = Settings.FovVisible
     FOVCircle.Radius = Settings.Fov
-    FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    FOVCircle.Position = ScreenCenter
 
     if Settings.Enabled then
         local Target = GetClosestPlayer()
         if Target and Target.Character and Target.Character:FindFirstChild(Settings.HitPart) then
-            local TargetPos = Camera:WorldToViewportPoint(Target.Character[Settings.HitPart].Position)
-            local MousePos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+            local TargetPos, onScreen = Camera:WorldToViewportPoint(Target.Character[Settings.HitPart].Position)
             
-            -- Calcular movimiento con suavizado (Smoothing)
-            local MoveX = (TargetPos.X - MousePos.X) / Settings.Smoothing
-            local MoveY = (TargetPos.Y - MousePos.Y) / Settings.Smoothing
-            
-            mousemoverel(MoveX, MoveY) -- Requiere un executor que soporte mousemoverel
+            if onScreen then
+                -- Calcular movimiento con suavizado (Smoothing)
+                local MoveX = (TargetPos.X - ScreenCenter.X) / Settings.Smoothing
+                local MoveY = (TargetPos.Y - ScreenCenter.Y) / Settings.Smoothing
+                
+                mousemoverel(MoveX, MoveY) -- Requiere un executor que soporte mousemoverel
+            end
         end
     end
 end)
