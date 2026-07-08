@@ -18,7 +18,7 @@ raycastParams.FilterType = Enum.RaycastFilterType.Exclude
 raycastParams.FilterDescendantsInstances = {character}
 local userInputService = game:GetService("UserInputService")
 local playerScripts = player:WaitForChild("PlayerScripts")
-local playerModule = require(playerScripts:WaitForChild("PlayerModule"))
+-- local playerModule = require(playerScripts:WaitForChild("PlayerModule"))
 local controls = playerModule:GetControls()
 local gameId = tostring(game.PlaceId)
 print(gameId)
