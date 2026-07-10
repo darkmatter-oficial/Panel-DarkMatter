@@ -9,7 +9,7 @@ for _, func in pairs(getgc(true)) do
           end
         end
       end
-      if teamDataDuelist then
+      if _G.teamDataDuelist then
         break
       end
     end
